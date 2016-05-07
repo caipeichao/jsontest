@@ -3,9 +3,10 @@
         url: http://127.0.0.1:8000/bad_url
     }
     response: {
+        status: "404"
         body: {
-            success: true
-            message: login success
+            success: false
+            message: request path not found
         }
     }
 }

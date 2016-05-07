@@ -26,14 +26,16 @@ class JsonServer(SimpleHTTPServer.SimpleHTTPRequestHandler):
 
     def send_404(self):
         self.send_response(404)
-        self.send_header('Content-type', 'application/json')
+        self.send_header('Content-Type', 'application/json')
         self.end_headers()
+        self.wfile.write(json.dumps({"success": False, "message": "request path not found"}))
+        self.wfile.close()
 
     def send_json(self, j):
         self.send_response(200)
 
         # send header first
-        self.send_header('Content-type', 'application/json')
+        self.send_header('Content-Type', 'application/json')
         self.end_headers()
 
         # send file content to client

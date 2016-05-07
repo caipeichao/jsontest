@@ -140,13 +140,38 @@ class TestFile(JsonTest):
         :rtype: TestFileResult
         """
         # make request
-        url = case['request']['url']
-        response = urllib.request.urlopen(url).read()
-        response = response.decode('utf8')
-        response = json.loads(response)
+        response = self._make_request(case['request'])
 
         # compare result
         return self._compare_response(case, response)
+
+    def _make_request(self, request):
+        url = request['url']
+        f = None
+        try:
+            f = urllib.request.urlopen(url)
+            body = self._json_loads(f.read())
+            if body is None:
+                return dict()
+            return {'body': body}
+        except urllib.request.HTTPError as ex:
+            f = ex
+            response = dict()
+            response['status'] = str(f.code)
+            body = self._json_loads(f.read())
+            if body is None:
+                return response
+            response['body'] = body
+            return response
+        finally:
+            if f:
+                f.close()
+
+    def _json_loads(self, bytes):
+        s = bytes.decode('utf8')
+        s = s.strip()
+        if not s: return None
+        return json.loads(s)
 
     def _filter_response(self, case):
         """
@@ -161,7 +186,6 @@ class TestFile(JsonTest):
                 continue
             result[k] = v
         return result
-
 
     def _json_clone(self, j):
         return json.loads(json.dumps(j))
@@ -181,7 +205,7 @@ class TestFile(JsonTest):
         # compare response
         actual = self._json_clone(case)
         actual = self._filter_response(actual)
-        actual['response'] = {'body': response}
+        actual['response'] = response
         equals = JsonDiff(case, actual).equals()
 
         # return result
