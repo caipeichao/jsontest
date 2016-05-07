@@ -9,13 +9,13 @@ Write test cases in human json.
 ``` json
 // Test login success
 {
-  uri: "http://127.0.0.1/login"
+  uri: "http://127.0.0.1/login",
   request: {
-    username: "john"
+    username: "john",
     password: "123456"
-  }
+  },
   response: {
-    success: true
+    success: true,
     message: "login success"
   }
 }
