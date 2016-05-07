@@ -20,10 +20,10 @@ def main():
         return
     test = sys.argv[1]
 
-    # create test suite
+    # create test 05_suite
     test = JsonTest.create(test)
 
-    # run test suite
+    # run test 05_suite
     reporter = ConsoleReporter()
     test.run(reporter)
 
@@ -142,7 +142,7 @@ class TestFile(JsonTest):
 
     def _run_test_case(self, case):
         """
-        Make restful request according to the test case.
+        Make restful 01_request according to the test case.
         Raise exception if error.
         :param dict case: the json of test case
         :rtype: TestFileResult
@@ -156,8 +156,8 @@ class TestFile(JsonTest):
             result.expect = None
             return result
 
-        # make request
-        response = self._make_request(case['request'])
+        # make 01_request
+        response = self._make_request(case['01_request'])
 
         # compare result
         return self._compare_response(case, response)

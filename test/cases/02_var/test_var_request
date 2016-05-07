@@ -1,0 +1,15 @@
+{
+    var: {
+
+    }
+    request: {
+        url: http://127.0.0.1:8000/bad_url
+    }
+    response: {
+        status: "404"
+        body: {
+            success: false
+            message: request path not found
+        }
+    }
+}
