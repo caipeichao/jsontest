@@ -6,16 +6,17 @@ An API testing tool for human.
 
 Write test cases in human json.
 
-``` hjson
+``` json
+// Test login success
 {
-  uri: http://127.0.0.1/login
+  uri: "http://127.0.0.1/login"
   request: {
-    username: john
-    password: 123456
+    username: "john"
+    password: "123456"
   }
   response: {
-    success: false
-    message: "bad password"
+    success: true
+    message: "login success"
   }
 }
 ```
