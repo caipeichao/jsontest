@@ -1,8 +1,11 @@
 {
+    vars: {
+
+    }
     url: http://127.0.0.1:8000/login_success
     response: {
         body: {
-            success: false
+            success: true
             message: login success
         }
     }

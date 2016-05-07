@@ -142,6 +142,7 @@ class TestFile(JsonTest):
         # make request
         url = case['url']
         response = urllib.request.urlopen(url).read()
+        response = response.decode('utf8')
         response = json.loads(response)
 
         # compare result
@@ -182,7 +183,7 @@ class TestFile(JsonTest):
     def _compare_response(self, case, response):
         # compare response
         actual = self._filter_response(case)
-        actual['response'] = response
+        actual['response'] = {'body': response}
         equals = JsonDiff(case, actual).equals()
 
         # return result
