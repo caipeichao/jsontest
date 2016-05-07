@@ -1,15 +1,14 @@
 {
     var: {
-
+        target: http://127.0.0.1:8000
     }
     request: {
-        url: http://127.0.0.1:8000/bad_url
+        url: ${target}/login_success
     }
     response: {
-        status: "404"
         body: {
-            success: false
-            message: request path not found
+            success: true
+            message: login success
         }
     }
 }

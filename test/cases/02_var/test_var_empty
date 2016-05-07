@@ -1,6 +1,6 @@
 {
     var: {
-        expect_message: login success
+        # there is no variables
     }
     request: {
         url: http://127.0.0.1:8000/login_success
@@ -8,7 +8,7 @@
     response: {
         body: {
             success: true
-            message: ${expect_message}
+            message: login success
         }
     }
 }
