@@ -6,8 +6,8 @@ An API testing tool for human.
 
 Write test cases in human json.
 
-<img src="example.png" width="300px"/>
+<img src="doc/example.png" width="300px"/>
 
 View testing report.
 
-<img src="view_report.png"/>
+<img src="doc/view_report.png"/>
