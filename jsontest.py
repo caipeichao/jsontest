@@ -140,7 +140,7 @@ class TestFile(JsonTest):
         :rtype: TestFileResult
         """
         # make request
-        url = case['url']
+        url = case['request']['url']
         response = urllib.request.urlopen(url).read()
         response = response.decode('utf8')
         response = json.loads(response)
@@ -166,9 +166,6 @@ class TestFile(JsonTest):
     def _json_clone(self, j):
         return json.loads(json.dumps(j))
 
-    def _diff_json(self, expect, actual):
-        return JsonDiff(expect, actual).diff()
-
     def _run_test_failed(self, test_case, ex):
         """
         The test case is throwing exception
@@ -182,7 +179,8 @@ class TestFile(JsonTest):
 
     def _compare_response(self, case, response):
         # compare response
-        actual = self._filter_response(case)
+        actual = self._json_clone(case)
+        actual = self._filter_response(actual)
         actual['response'] = {'body': response}
         equals = JsonDiff(case, actual).equals()
 
@@ -397,6 +395,8 @@ class JsonDiff:
 
 
     def _normalize_json(self, x):
+        x = json.dumps(x)
+        x = json.loads(x)
         x = self._normalize_object(x)
         x = json.dumps(x, indent=2, ensure_ascii=False)
         return x
