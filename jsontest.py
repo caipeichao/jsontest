@@ -112,11 +112,15 @@ class TestFile(JsonTest):
         Only dict is expected.
         :rtype: dict
         """
+        try:
+            self._load_test_case_exception()
+        except Exception as ex:
+            if 'Bad key name (eof)' in str(ex):
+                return None
+
+    def _load_test_case_exception(self):
         with open(self.path) as f:
             f = f.read()
-            f = f.strip()
-            if not f:
-                return None
             result = hjson.loads(f, 'utf8')
             if not result:
                 return None
