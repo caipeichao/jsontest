@@ -10,6 +10,6 @@ Write test cases in human json.
 
 <img src="doc/example.png" width="300px"/>
 
-View testing report.
+View testing report. Highlight bad assertions.
 
 <img src="doc/view_report.png"/>
