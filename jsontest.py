@@ -113,7 +113,11 @@ class TestFile(JsonTest):
         :rtype: dict
         """
         with open(self.path) as f:
-            result = hjson.load(f, 'utf8')
+            f = f.read()
+            f = f.strip()
+            if not f:
+                return None
+            result = hjson.loads(f, 'utf8')
             if not result:
                 return None
             if type(result) not in [dict, OrderedDict]:
@@ -139,6 +143,15 @@ class TestFile(JsonTest):
         :param dict case: the json of test case
         :rtype: TestFileResult
         """
+        # test nothing
+        if case is None:
+            result = TestFileResult()
+            result.passed = True
+            result.test = self
+            result.actual = None
+            result.expect = None
+            return result
+
         # make request
         response = self._make_request(case['request'])
 
