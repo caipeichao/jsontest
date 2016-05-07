@@ -10,3 +10,4 @@ Write test cases in human json.
 
 View testing report.
 
+<img src="view_report.png"/>
