@@ -7,6 +7,11 @@
         var_map: {
             hello: world
         }
+
+        # keep type indirectly
+        var1: 123
+        var2: ${var1}
+        var3: ${var2}
     }
     request: {
         url: http://127.0.0.1:8000/test_var_type

@@ -182,17 +182,52 @@ class TestFile(JsonTest):
         return result
 
     def _evaluate_vars_str(self, vars, s):
+        replaced, count, replaced_vars = self._evaluate_vars_circular(set(), vars, s)
+        return replaced
+
+    def _evaluate_vars_circular(self, circular, vars, s):
+        return self._evaluate_vars_once(vars, s)
+
+    def _evaluate_vars_once(self, vars, s):
         # if the whole string is a replacement
         # should return var with type
         replace = lambda x: self._evaluate_vars_replace(vars, x)
         regex = r'\$\{([^}]*)\}'
         match = re.match(regex + '$', s)
         if match:
-            return replace(match)
+            name = self._get_var_name(match)
+            return replace(match), 1, {name}
 
         # replace anything into string
-        replace_str = lambda x: str(replace(x))
-        return re.sub(regex, replace_str, s)
+        replace_str = lambda m: str(replace(m))
+
+        # add to replaced_vars at replacement
+        replaced_vars = set()
+
+        def replace_add(m):
+            name = self._get_var_name(m)
+            replaced_vars.add(name)
+            return replace_str(m)
+
+        replaced, count = re.subn(regex, replace_add, s)
+
+        # result contains result, replace count, replaced vars
+        return replaced, count, replaced_vars
+
+    def _get_var_name(self, m):
+        all, name, filters = self._evaluate_parse(m)
+        return name
+
+    def _evaluate_parse(self, m):
+        # parse expression
+        # eg. ${ <name> | <filter1> | <filter2> | ... }
+        all = m.group(0)
+        expression = m.group(1)
+        name = expression.split('|')[0]
+        filters = expression.split('|')[1:]
+
+        # return these
+        return all, name, filters
 
     def _evaluate_vars_replace(self, vars, m):
         """
@@ -202,10 +237,7 @@ class TestFile(JsonTest):
         """
         # parse expression
         # eg. ${ <name> | <filter1> | <filter2> | ... }
-        all = m.group(0)
-        expression = m.group(1)
-        name = expression.split('|')[0]
-        filters = expression.split('|')[1:]
+        all, name, filters = self._evaluate_parse(m)
 
         # cannot find this var
         if name not in vars:
@@ -279,11 +311,10 @@ class TestFile(JsonTest):
         """
         # test nothing
         if case is None:
-            result = TestFileResult()
-            result.passed = True
+            result = TestError()
+            result.passed = False
             result.test = self
-            result.actual = None
-            result.expect = None
+            result.message = 'Test case is empty'
             return result
 
         # make request
