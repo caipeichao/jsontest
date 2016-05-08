@@ -89,6 +89,7 @@ class TestFile(JsonTest):
         try:
             test_case = self._load_test_case()
         except Exception as ex:
+            log_error(ex)
             err = self._load_test_failed(ex)
             reporter.end(self, err)
             return err
@@ -97,6 +98,7 @@ class TestFile(JsonTest):
         try:
             result = self._run_test_case(test_case)
         except Exception as ex:
+            log_error(ex)
             err = self._run_test_failed(test_case, ex)
             reporter.end(self, err)
             return err
@@ -113,8 +115,9 @@ class TestFile(JsonTest):
         :rtype: dict
         """
         try:
-            self._load_test_case_exception()
+            return self._load_test_case_exception()
         except Exception as ex:
+            log_error(ex)
             if 'Bad key name (eof)' in str(ex):
                 return None
 
@@ -142,7 +145,7 @@ class TestFile(JsonTest):
 
     def _run_test_case(self, case):
         """
-        Make restful 01_request according to the test case.
+        Make restful request according to the test case.
         Raise exception if error.
         :param dict case: the json of test case
         :rtype: TestFileResult
@@ -156,8 +159,8 @@ class TestFile(JsonTest):
             result.expect = None
             return result
 
-        # make 01_request
-        response = self._make_request(case['01_request'])
+        # make request
+        response = self._make_request(case['request'])
 
         # compare result
         return self._compare_response(case, response)
@@ -172,6 +175,7 @@ class TestFile(JsonTest):
                 return dict()
             return {'body': body}
         except urllib.request.HTTPError as ex:
+            log_error(ex)
             f = ex
             response = dict()
             response['status'] = str(f.code)
@@ -255,6 +259,7 @@ class TestFolder(JsonTest):
         try:
             files = os.listdir(self.path)
         except Exception as ex:
+            log_error(ex)
             err = self._list_files_error(ex)
             reporter.end(self, err)
             return err
@@ -267,14 +272,16 @@ class TestFolder(JsonTest):
         for e in files:
             try:
                 e = os.path.join(self.path, e)
-                e = TestFile(e)
+                e = JsonTest.create(e)
                 sub_result = e.run(reporter)
                 result.children.append(sub_result)
             except Exception as ex:
+                log_error(ex)
                 err = self._run_test_case_error(ex, e)
                 result.children.append(err)
 
         # run ok
+        reporter.end(self, result)
         return result
 
     def _run_test_case_error(self, ex, case):
@@ -295,6 +302,9 @@ class TestFolder(JsonTest):
         result.message = repr(ex)
         return result
 
+def log_error(ex):
+    # traceback.print_exc()
+    pass
 
 class TestReporter:
     """
