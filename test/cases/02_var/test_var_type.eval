@@ -3,10 +3,15 @@
         var_bool: true
         var_int: 8000
         var_str: success
-        var_list: [hello,world]
+        var_list: ["hello","world"]
         var_map: {
             hello: world
         }
+
+        # keep type indirectly
+        var1: 123
+        var2: 123
+        var3: 123
     }
     request: {
         url: http://127.0.0.1:8000/test_var_type
@@ -14,25 +19,25 @@
     response: {
         body: {
             # should keep type
-            test_bool: ${var_bool}
-            test_int: ${var_int}
-            test_str: ${var_str}
-            test_list: ${var_list}
-            test_map: ${var_map}
+            test_bool: true
+            test_int: 8000
+            test_str: success
+            test_list: ["hello","world"]
+            test_map: { "hello": "world" }
 
             # should convert to str
-            test_bool_str: "${var_bool|str}"
-            test_int_str: "${var_int|str}"
-            test_str_str: "${var_str|str}"
-            test_list_str: "${var_list|str}"
-            test_map_str: "${var_map|str}"
+            test_bool_str: "true"
+            test_int_str: "8000"
+            test_str_str: "success"
+            test_list_str: '''["hello","world"]'''
+            test_map_str: "{\"hello\":\"world\"}"
 
             # should convert to str
-            test_bool_emb: "a${var_bool}b"
-            test_int_emb: "a${var_int}b"
-            test_str_emb: "a${var_str_str}b"
-            test_list_emb: "a${var_list}b"
-            test_map_emb: "a${var_map}b"
+            test_bool_emb: "atrueb"
+            test_int_emb: "a8000b"
+            test_str_emb: "asuccessb"
+            test_list_emb: "a[\"hello\",\"world\"]b"
+            test_map_emb: "a{\"hello\":\"world\"}b"
         }
     }
 }

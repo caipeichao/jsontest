@@ -3,11 +3,11 @@
         name: success
 
         # should be "message": "login success"
-        message: login ${name}
+        message: login success
         var_bool: true
 
         # should be with type "var_bool2": true
-        var_bool2: ${var_bool}
+        var_bool2: true
     }
     request: {
         url: http://127.0.0.1:8000/login_success
@@ -15,10 +15,10 @@
     response: {
         body: {
             # should be boolean type
-            success: ${var_bool2}
+            success: true
 
             # should be login success
-            message: ${message}
+            message: login success
         }
     }
 }

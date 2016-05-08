@@ -3,7 +3,7 @@
         var_bool: true
         var_int: 8000
         var_str: success
-        var_list: [hello,world]
+        var_list: ["hello","world"]
         var_map: {
             hello: world
         }
@@ -35,7 +35,7 @@
             # should convert to str
             test_bool_emb: "a${var_bool}b"
             test_int_emb: "a${var_int}b"
-            test_str_emb: "a${var_str_str}b"
+            test_str_emb: "a${var_str}b"
             test_list_emb: "a${var_list}b"
             test_map_emb: "a${var_map}b"
         }

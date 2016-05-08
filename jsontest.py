@@ -87,15 +87,34 @@ class TestFile(JsonTest):
         # start to run test
         reporter.begin(self)
 
+        # run test
+        try:
+            result = self._run_without_report()
+        except Exception as ex:
+            log_error(ex)
+            err = self._test_error("failed to run test")
+            reporter.end(self, err)
+            return err
+
+        # end test
+        reporter.end(self, result)
+        return result
+
+    def _test_error(self, message):
+        err = TestError()
+        err.passed = False
+        err.message = message
+        err.test = self
+        return err
+
+    def _run_without_report(self):
         # load test case. fail if load failed.
         try:
             test_case = self._load_test_case()
             test_case = self._evaluate_vars(test_case)
         except Exception as ex:
             log_error(ex)
-            err = self._load_test_failed(ex)
-            reporter.end(self, err)
-            return err
+            return self._load_test_failed(ex)
 
         # if only test evaluation
         try:
@@ -104,21 +123,14 @@ class TestFile(JsonTest):
         except Exception as ex:
             log_error(ex)
             err = self._run_test_failed(test_case, ex)
-            reporter.end(self, err)
             return err
 
         # run test case. If failed, compare failure message.
         try:
-            result = self._run_test_case(test_case)
+            return self._run_test_case(test_case)
         except Exception as ex:
             log_error(ex)
-            err = self._run_test_failed(test_case, ex)
-            reporter.end(self, err)
-            return err
-
-        # run test ok, report it
-        reporter.end(self, result)
-        return result
+            return self._run_test_failed(test_case, ex)
 
     def _is_evaluation_test(self):
         expect = self._get_evaluation_expect()
@@ -146,8 +158,21 @@ class TestFile(JsonTest):
         if not vars: return case
         vars = self._json_clone(vars)
 
+        # evaluate vars self
+        vars = self._evaluate_vars_self(vars)
+
         # replace every vars
-        result = self._evaluate_vars_dict(vars, case)
+        result, count = self._evaluate_vars_dict(vars, case)
+        return result
+
+    def _evaluate_vars_self(self, vars):
+        # current vars only visible to after vars
+        result = OrderedDict()
+        for k, v in vars.items():
+            v, count = self._evaluate_vars_object(result, v)
+            result[k] = v
+
+        # evaluate ok
         return result
 
     def _evaluate_vars_dict(self, vars, case):
@@ -158,12 +183,23 @@ class TestFile(JsonTest):
         :rtype: OrderedDict
         """
         result = OrderedDict()
+        count = 0
         for k, v in case.items():
-            v = self._evaluate_vars_object(vars, v)
+            v, c = self._evaluate_vars_object(vars, v)
             result[k] = v
-        return result
+            count += c
+        return result, count
 
     def _evaluate_vars_object(self, vars, case):
+        result = case
+        count = 0
+        while True:
+            result, c = self._evaluate_vars_object_once(vars, result)
+            if not c:
+                return result, count
+            count += c
+
+    def _evaluate_vars_object_once(self, vars, case):
         if type(case) == dict:
             return self._evaluate_vars_dict(vars, case)
         if type(case) == OrderedDict:
@@ -172,47 +208,37 @@ class TestFile(JsonTest):
             return self._evaluate_vars_list(vars, case)
         if type(case) == str:
             return self._evaluate_vars_str(vars, case)
-        return case
+        return case, 0
 
     def _evaluate_vars_list(self, vars, case):
         result = []
+        count = 0
         for e in case:
-            e = self._evaluate_vars_object(vars, e)
+            e, c = self._evaluate_vars_object(vars, e)
             result.append(e)
-        return result
+            count += c
+        return result, count
 
     def _evaluate_vars_str(self, vars, s):
-        replaced, count, replaced_vars = self._evaluate_vars_circular(set(), vars, s)
-        return replaced
-
-    def _evaluate_vars_circular(self, circular, vars, s):
-        return self._evaluate_vars_once(vars, s)
-
-    def _evaluate_vars_once(self, vars, s):
         # if the whole string is a replacement
         # should return var with type
         replace = lambda x: self._evaluate_vars_replace(vars, x)
         regex = r'\$\{([^}]*)\}'
         match = re.match(regex + '$', s)
         if match:
-            name = self._get_var_name(match)
-            return replace(match), 1, {name}
+            return replace(match), 1
 
         # replace anything into string
-        replace_str = lambda m: str(replace(m))
-
-        # add to replaced_vars at replacement
-        replaced_vars = set()
-
-        def replace_add(m):
-            name = self._get_var_name(m)
-            replaced_vars.add(name)
-            return replace_str(m)
-
-        replaced, count = re.subn(regex, replace_add, s)
+        replace_str = lambda m: self._to_str(replace(m))
+        replaced, count = re.subn(regex, replace_str, s)
 
         # result contains result, replace count, replaced vars
-        return replaced, count, replaced_vars
+        return replaced, count
+
+    def _to_str(self, s):
+        # should keep json style
+        if type(s) == str: return s
+        return json.dumps(s, ensure_ascii=False, separators=(',', ':'))
 
     def _get_var_name(self, m):
         all, name, filters = self._evaluate_parse(m)
@@ -250,7 +276,7 @@ class TestFile(JsonTest):
         for e in filters:
             e = e.strip()
             if e == 'str':
-                result = str(result)
+                result = self._to_str(result)
             else:
                 raise Exception("unknown filter %s evaluating %s" % (e, all))
 
@@ -271,6 +297,8 @@ class TestFile(JsonTest):
             log_error(ex)
             if 'Bad key name (eof)' in str(ex):
                 return None
+            else:
+                raise
 
     def _load_test_case_exception(self):
         with open(self.path) as f:
@@ -432,6 +460,8 @@ class TestFolder(JsonTest):
         result.children = []
         for e in files:
             try:
+                if self._is_evaluation_test_file(e):
+                    continue
                 e = os.path.join(self.path, e)
                 e = JsonTest.create(e)
                 sub_result = e.run(reporter)
@@ -445,6 +475,9 @@ class TestFolder(JsonTest):
         # run ok
         reporter.end(self, result)
         return result
+
+    def _is_evaluation_test_file(self, f):
+        return f.endswith(".eval")
 
     def _run_test_case_error(self, ex, case):
         """
