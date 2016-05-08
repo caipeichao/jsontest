@@ -28,7 +28,9 @@ View testing report. Highlight bad assertions.
 
 ## Tutorial
 
-### Request
+### Basics
+
+Put the following test case into a file.
 
 ``` hjson
 # This is a simple test case
@@ -50,6 +52,24 @@ View testing report. Highlight bad assertions.
         }
     }
 }
+```
+
+Suppose the file name is `helloworld.jsontest`, then you can run the test case use
+the fowllowing command:
+
+``` bash
+python jsontest.py helloworld.jsontest
+```
+
+It will give the output:
+
+``` plain
+Passed: test/cases/01_request/test_not_found
+
+Total 1
+Passed 1
+Failed 0
+Error 0
 ```
 
 ### Handling error
