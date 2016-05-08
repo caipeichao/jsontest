@@ -1,0 +1,14 @@
+{
+    var: {
+        expect_message: login success
+    }
+    request: {
+        url: http://127.0.0.1:8000/login_success
+    }
+    response: {
+        body: {
+            success: true
+            message: ${expect_message}
+        }
+    }
+}

@@ -9,7 +9,9 @@ import hjson
 import urllib
 import urllib.request
 import difflib
+import traceback
 from collections import OrderedDict
+import re
 
 
 def main():
@@ -88,9 +90,20 @@ class TestFile(JsonTest):
         # load test case. fail if load failed.
         try:
             test_case = self._load_test_case()
+            test_case = self._evaluate_vars(test_case)
         except Exception as ex:
             log_error(ex)
             err = self._load_test_failed(ex)
+            reporter.end(self, err)
+            return err
+
+        # if only test evaluation
+        try:
+            if self._is_evaluation_test():
+                return self._run_evaluation_test(test_case)
+        except Exception as ex:
+            log_error(ex)
+            err = self._run_test_failed(test_case, ex)
             reporter.end(self, err)
             return err
 
@@ -106,6 +119,112 @@ class TestFile(JsonTest):
         # run test ok, report it
         reporter.end(self, result)
         return result
+
+    def _is_evaluation_test(self):
+        expect = self._get_evaluation_expect()
+        if not expect:
+            return False
+        return True
+
+    def _get_evaluation_expect(self):
+        path = self.path + '.eval'
+        if not os.path.exists(path):
+            return None
+        with open(path, 'rb') as f:
+            return hjson.load(f, 'utf8')
+
+    def _evaluate_vars(self, case):
+        """
+        :param dict|collections.OrderedDict case: a
+        :return:
+        :rtype: OrderedDict
+        """
+        # get vars from test case
+        # is no vars, skip this step
+        if not case: return case
+        vars = case.get('var', None)
+        if not vars: return case
+        vars = self._json_clone(vars)
+
+        # replace every vars
+        result = self._evaluate_vars_dict(vars, case)
+        return result
+
+    def _evaluate_vars_dict(self, vars, case):
+        """
+        :param dict|OrderedDict vars: a
+        :param dict|OrderedDict case: a
+        :return:
+        :rtype: OrderedDict
+        """
+        result = OrderedDict()
+        for k, v in case.items():
+            v = self._evaluate_vars_object(vars, v)
+            result[k] = v
+        return result
+
+    def _evaluate_vars_object(self, vars, case):
+        if type(case) == dict:
+            return self._evaluate_vars_dict(vars, case)
+        if type(case) == OrderedDict:
+            return self._evaluate_vars_dict(vars, case)
+        if type(case) == list:
+            return self._evaluate_vars_list(vars, case)
+        if type(case) == str:
+            return self._evaluate_vars_str(vars, case)
+        return case
+
+    def _evaluate_vars_list(self, vars, case):
+        result = []
+        for e in case:
+            e = self._evaluate_vars_object(vars, e)
+            result.append(e)
+        return result
+
+    def _evaluate_vars_str(self, vars, s):
+        # if the whole string is a replacement
+        # should return var with type
+        replace = lambda x: self._evaluate_vars_replace(vars, x)
+        regex = r'\$\{([^}]*)\}'
+        match = re.match(regex + '$', s)
+        if match:
+            return replace(match)
+
+        # replace anything into string
+        replace_str = lambda x: str(replace(x))
+        return re.sub(regex, replace_str, s)
+
+    def _evaluate_vars_replace(self, vars, m):
+        """
+        :param vars:
+        :param re.__Match m: a
+        :return:
+        """
+        # parse expression
+        # eg. ${ <name> | <filter1> | <filter2> | ... }
+        all = m.group(0)
+        expression = m.group(1)
+        name = expression.split('|')[0]
+        filters = expression.split('|')[1:]
+
+        # cannot find this var
+        if name not in vars:
+            raise Exception('Could not find var %s evaluating %s' % (name, all))
+
+        # execute filters
+        result = vars[name]
+        if not filters:
+            return result
+        for e in filters:
+            e = e.strip()
+            if e == 'str':
+                result = str(result)
+            else:
+                raise Exception("unknown filter %s evaluating %s" % (e, all))
+
+        # replace ok
+        return result
+
 
     def _load_test_case(self):
         """
@@ -123,8 +242,7 @@ class TestFile(JsonTest):
 
     def _load_test_case_exception(self):
         with open(self.path) as f:
-            f = f.read()
-            result = hjson.loads(f, 'utf8')
+            result = hjson.load(f, 'utf8')
             if not result:
                 return None
             if type(result) not in [dict, OrderedDict]:
@@ -142,6 +260,15 @@ class TestFile(JsonTest):
         result.passed = False
         result.message = 'Failed to load test: ' + repr(ex)
         return result
+
+    def _run_evaluation_test(self, evaluated):
+        # test nothing
+        if evaluated is None:
+            return
+
+        # compare case with expect
+        eval_expect = self._get_evaluation_expect()
+        return self._generate_result(eval_expect, evaluated)
 
     def _run_test_case(self, case):
         """
@@ -163,7 +290,7 @@ class TestFile(JsonTest):
         response = self._make_request(case['request'])
 
         # compare result
-        return self._compare_response(case, response)
+        return self._generate_result_for_response(case, response)
 
     def _make_request(self, request):
         url = request['url']
@@ -209,7 +336,7 @@ class TestFile(JsonTest):
         return result
 
     def _json_clone(self, j):
-        return json.loads(json.dumps(j))
+        return hjson.loads(hjson.dumps(j))
 
     def _run_test_failed(self, test_case, ex):
         """
@@ -220,20 +347,23 @@ class TestFile(JsonTest):
         """
         # response is exception
         response = {'error': repr(ex)}
-        return self._compare_response(test_case, response)
+        return self._generate_result_for_response(test_case, response)
 
-    def _compare_response(self, case, response):
+    def _generate_result_for_response(self, case, response):
         # compare response
         actual = self._json_clone(case)
         actual = self._filter_response(actual)
         actual['response'] = response
-        equals = JsonDiff(case, actual).equals()
+        return self._generate_result(case, actual)
+
+    def _generate_result(self, expect, actual):
+        equals = JsonDiff(expect, actual).equals()
 
         # return result
         result = TestFileResult()
         result.passed = equals
         result.test = self
-        result.expect = case
+        result.expect = expect
         result.actual = actual
         return result
 
@@ -278,6 +408,7 @@ class TestFolder(JsonTest):
             except Exception as ex:
                 log_error(ex)
                 err = self._run_test_case_error(ex, e)
+                reporter.end(self, result)
                 result.children.append(err)
 
         # run ok
@@ -302,9 +433,11 @@ class TestFolder(JsonTest):
         result.message = repr(ex)
         return result
 
+
 def log_error(ex):
     # traceback.print_exc()
     pass
+
 
 class TestReporter:
     """
